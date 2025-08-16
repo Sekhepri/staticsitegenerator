@@ -1,7 +1,8 @@
 from enum import Enum
+from htmlnode import HTMLNode, LeafNode, ParentNode
 
 class TextType(Enum):
-    PLAIN = "plain"
+    TEXT = "text"
     BOLD = "bold"       #**Bold text**
     ITALIC = "italic"   #_Italic text_
     CODE = "code"       #'Code text'
@@ -25,3 +26,20 @@ class TextNode():
             )
     def __repr__(self):
         return f"TextNode({self.text}, {self.text_type.value}, {self.url})"
+    
+def text_node_to_html_node(text_node):
+    match text_node.text_type:
+        case TextType.TEXT:
+            return LeafNode(None, text_node.text, None)
+        case TextType.BOLD:
+            return LeafNode("b", text_node.text, None)
+        case TextType.ITALIC:
+            return LeafNode("i", text_node.text, None)
+        case TextType.CODE:
+            return LeafNode("code", text_node.text, None)
+        case TextType.LINK:
+            return LeafNode("a", text_node.text, None)
+        case TextType.IMAGE:
+            return LeafNode("img", None, {"src":text_node.url, "alt":text_node.text})
+        case _:
+            raise TypeError (f"{text_node.text_type} is not known or not implemented. available TextTypes: TEXT, BOLD, ITALIC, CODE, LINK and IMAGE")
