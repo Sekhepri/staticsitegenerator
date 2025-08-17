@@ -17,3 +17,25 @@ def text_node_to_html_node(text_node):
             return LeafNode("img", None, {"src":text_node.url, "alt":text_node.text})
         case _:
             raise TypeError (f"{text_node.text_type} is not known or not implemented. available TextTypes: TEXT, BOLD, ITALIC, CODE, LINK and IMAGE")
+        
+def split_nodes_delimiter(old_nodes, delimiter, text_type):
+    new_nodes = []
+    for node in old_nodes:
+        if node.text_type != TextType.TEXT:
+            new_nodes.append(node)
+        splitted_node = node.text.split(delimiter)        
+        if node.text[0] == delimiter:
+            use_text_type = True
+        else:
+            use_text_type = False
+        for text in splitted_node:
+            if use_text_type:
+                new_nodes.append(
+                    TextNode(text, text_type)
+                )
+            else:
+                new_nodes.append(
+                    TextNode(text, TextType.TEXT)
+                )
+            use_text_type = not use_text_type
+    return new_nodes

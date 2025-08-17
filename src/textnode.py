@@ -1,4 +1,6 @@
 from enum import Enum
+from htmlnode import *
+from textnode import *
 
 class TextType(Enum):
     TEXT = "text"
