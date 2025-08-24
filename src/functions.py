@@ -1,5 +1,6 @@
 from htmlnode import *
 from textnode import *
+from enum import Enum
 import re
 
 def text_node_to_html_node(text_node):
@@ -104,3 +105,41 @@ def markdown_to_blocks(markdown):
     blocks = []
     blocks.append(markdown.split("\n\n"))
     return blocks
+
+class BlockType(Enum):
+    PARAGRAPH = "paragraph"
+    HEADING = "heading"
+    CODE = "code"
+    QUOTE = "quote"
+    UNORDERED_LIST = "unordered_list"
+    ORDERED_LIST = "ordered_list"
+
+def block_to_block_type(markdown):
+    if re.findall(r"^#{1,6} ", markdown):
+        return BlockType.HEADING
+    if re.findall(r"^'{3}", markdown) and re.findall(r"'{3}$", markdown) :
+        return BlockType.CODE
+    if re.findall(r"^> ", markdown):
+        splitted = markdown.split("\n")
+        for i in range(len(splitted)-1, -1, -1):
+            splitted[i][0:2]
+            if i == 0:
+                return BlockType.QUOTE
+            if (splitted[i][0:2]) != "> ":
+                break
+    if re.findall(r"^- ", markdown):
+        splitted = markdown.split("\n")
+        for i in range(len(splitted)-1, -1, -1):
+            splitted[i][0:2]
+            if i == 0:
+                return BlockType.UNORDERED_LIST
+            if (splitted[i][0:2]) != "- ":
+                break
+    if re.findall(r"^\d+. ", markdown):
+        splitted = markdown.split("\n")
+        for i in range(len(splitted)-1, -1, -1):
+            if i == 0:
+                return BlockType.ORDERED_LIST
+            if int(splitted[i][0]) != i+1:
+                break
+    return BlockType.PARAGRAPH
