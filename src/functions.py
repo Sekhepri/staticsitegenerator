@@ -3,7 +3,11 @@ from textnode import *
 from enum import Enum
 import re
 
+
 def text_node_to_html_node(text_node):
+    '''
+    Converts a single TextNode to a HTML LeafNode
+    '''
     match text_node.text_type:
         case TextType.TEXT:
             return LeafNode(None, text_node.text, None)
@@ -21,6 +25,16 @@ def text_node_to_html_node(text_node):
             raise TypeError (f"{text_node.text_type} is not known or not implemented. available TextTypes: TEXT, BOLD, ITALIC, CODE, LINK and IMAGE")
         
 def split_nodes_delimiter(old_nodes, delimiter, text_type):
+    '''
+    Splits a list of TextNodes into multiple TextNodes based on a delimiter.
+    Used for spliting TextTypes into individual nodes.
+    Eg. TextNode("This is text with a `code block` word", TextType.TEXT) -->
+    [
+    TextNode("This is text with a ", TextType.TEXT),
+    TextNode("code block", TextType.CODE),
+    TextNode(" word", TextType.TEXT)
+    ]
+    '''
     new_nodes = []
     for node in old_nodes:
         if node.text_type != TextType.TEXT:
@@ -45,17 +59,26 @@ def split_nodes_delimiter(old_nodes, delimiter, text_type):
 
 #Boot.dev recomends r"!\[([^\[\]]*)\]\(([^\(\)]*)\)"
 def extract_markdown_images(text):
+    '''
+    Extracts image alt_text and url from a string. Helper function for split_nodes_images
+    '''
     alt_text = re.findall(r"!\[(.*?)\]",text)
     src_img = re.findall(r"\((.*?)\)", text)
     return list(zip(alt_text, src_img))
 
 #Boot.dev recomends: r"(?<!!)\[([^\[\]]*)\]\(([^\(\)]*)\)"
 def extract_markdown_links(text):
+    '''
+    Extracts link-text and url from a string. Helper function for split_nodes_link
+    '''
     link_texst = re.findall(r"\[(.*?)\]",text)
     src_link = re.findall(r"\((.*?)\)", text) #
     return list(zip(link_texst, src_link))
 
 def split_nodes_image(old_nodes):
+    '''
+    Splits all TextNodes in a list into Text and Image TextTypes (only if an IMAGE is found.)
+    '''
     new_nodes = []
     for node in old_nodes:
         extracts = extract_markdown_images(node.text)
@@ -74,6 +97,9 @@ def split_nodes_image(old_nodes):
     return new_nodes
 
 def split_nodes_link(old_nodes):
+    '''
+    Splits all TextNodes in a list into Text and Link TextTypes (only if a link is found.)
+    '''
     new_nodes = []
     for node in old_nodes:
         extracts = extract_markdown_links(node.text)
@@ -91,9 +117,11 @@ def split_nodes_link(old_nodes):
                 new_nodes.append(TextNode(string_to_split, TextType.TEXT))
     return new_nodes
 
-def text_to_textnodes(text):
-    text_node = TextNode(text, TextType.TEXT)
-    new_nodes = [text_node]
+def text_to_textnodes(markdown):
+    '''
+    Composition of helper-functions. Converts markdown tekst (innline) into TextNodes by TextTypes. 
+    '''
+    new_nodes = [TextNode(markdown, TextType.TEXT)]
     new_nodes = split_nodes_image(new_nodes)
     new_nodes = split_nodes_link(new_nodes)
     new_nodes = split_nodes_delimiter(new_nodes, "**", TextType.BOLD)
@@ -102,8 +130,11 @@ def text_to_textnodes(text):
     return new_nodes
 
 def markdown_to_blocks(markdown):
+    '''
+    Splits raw markdown into seperate blocks
+    '''
     blocks = []
-    blocks.append(markdown.split("\n\n"))
+    blocks = (markdown.strip().split("\n\n"))
     return blocks
 
 class BlockType(Enum):
@@ -115,25 +146,26 @@ class BlockType(Enum):
     ORDERED_LIST = "ordered_list"
 
 def block_to_block_type(markdown):
+    '''
+    Checks which BlockType a block belongs to and returns it.
+    '''
     if re.findall(r"^#{1,6} ", markdown):
         return BlockType.HEADING
-    if re.findall(r"^'{3}", markdown) and re.findall(r"'{3}$", markdown) :
+    if re.findall(r"^\`{3}", markdown) and re.findall(r"\`{3}$", markdown) :
         return BlockType.CODE
     if re.findall(r"^> ", markdown):
         splitted = markdown.split("\n")
         for i in range(len(splitted)-1, -1, -1):
-            splitted[i][0:2]
             if i == 0:
                 return BlockType.QUOTE
-            if (splitted[i][0:2]) != "> ":
+            if not re.findall(r"^> ",splitted[i][0:2]):
                 break
     if re.findall(r"^- ", markdown):
         splitted = markdown.split("\n")
         for i in range(len(splitted)-1, -1, -1):
-            splitted[i][0:2]
             if i == 0:
                 return BlockType.UNORDERED_LIST
-            if (splitted[i][0:2]) != "- ":
+            if not re.findall(r"^- ", splitted[i][0:2]):
                 break
     if re.findall(r"^\d+. ", markdown):
         splitted = markdown.split("\n")
@@ -143,3 +175,60 @@ def block_to_block_type(markdown):
             if int(splitted[i][0]) != i+1:
                 break
     return BlockType.PARAGRAPH
+
+def text_to_children(text):
+    '''
+    Converts text into a list of HTMLNodes
+    '''
+    innline_nodes = text_to_textnodes(text)
+    print(innline_nodes)
+
+
+def markdown_to_html_node(markdown):
+    '''
+    Converts a full markdown document into a single parent HTMLNode with children ending in LeafNodes.
+    '''
+    blocks = markdown_to_blocks(markdown)
+    nodes = []
+    for block in blocks:
+        block_type = block_to_block_type(block)
+        tag = ""
+        match block_type:
+            case BlockType.PARAGRAPH:
+                tag = "p"
+                nodes.append(HTMLNode(tag, block, None, None))
+            case BlockType.HEADING:
+                tag = "h"
+                nodes.append(HTMLNode(tag, block, None, None))
+            case BlockType.CODE:
+                tag = "code"
+                nodes.append(HTMLNode(tag, block, None, None))
+            case BlockType.QUOTE:
+                tag = "blockquote"
+                nodes.append(HTMLNode(tag, block, None, None))
+            case BlockType.UNORDERED_LIST:
+                tag = "ul"
+                nodes.append(HTMLNode(tag, block, None, None))
+            case BlockType.ORDERED_LIST:
+                tag = "ol"
+                nodes.append(HTMLNode(tag, block, None, None))
+            case _:
+                raise Exception ("BlockType not known")
+    for node in nodes:
+        text_to_children(node.value)
+    return nodes
+            
+markdown = ("""
+This is **bolded** paragraph
+text in a p
+tag here
+
+This is another paragraph with _italic_ text and `code` here
+
+```
+This is text that _should_ remain
+the **same** even with inline stuff
+```
+""")
+nodes = markdown_to_html_node(markdown)
+print(nodes)
