@@ -176,12 +176,16 @@ def block_to_block_type(markdown):
                 break
     return BlockType.PARAGRAPH
 
-def text_to_children(text):
+def text_to_children(block, tag):
     '''
     Converts text into a list of HTMLNodes
     '''
-    innline_nodes = text_to_textnodes(text)
-    print(innline_nodes)
+    if tag != "code":
+        children_textNodes = text_to_textnodes(block.replace("\n", " ").lstrip("#").lstrip(">").lstrip("-"))
+        children_htmlNodes = [ParentNode(tag, list(map(text_node_to_html_node, children_textNodes)), None)]
+    else:
+        children_htmlNodes = [ParentNode("pre", [LeafNode(tag, block.strip("```").lstrip(), None)], None)]
+    return children_htmlNodes
 
 
 def markdown_to_html_node(markdown):
@@ -189,46 +193,61 @@ def markdown_to_html_node(markdown):
     Converts a full markdown document into a single parent HTMLNode with children ending in LeafNodes.
     '''
     blocks = markdown_to_blocks(markdown)
-    nodes = []
+    parentNode = ParentNode("div", [], None)
     for block in blocks:
         block_type = block_to_block_type(block)
         tag = ""
         match block_type:
             case BlockType.PARAGRAPH:
                 tag = "p"
-                nodes.append(HTMLNode(tag, block, None, None))
             case BlockType.HEADING:
-                tag = "h"
-                nodes.append(HTMLNode(tag, block, None, None))
+                tag = "h" + str(block.count('#', 0,6))
             case BlockType.CODE:
                 tag = "code"
-                nodes.append(HTMLNode(tag, block, None, None))
             case BlockType.QUOTE:
                 tag = "blockquote"
-                nodes.append(HTMLNode(tag, block, None, None))
             case BlockType.UNORDERED_LIST:
                 tag = "ul"
-                nodes.append(HTMLNode(tag, block, None, None))
             case BlockType.ORDERED_LIST:
                 tag = "ol"
-                nodes.append(HTMLNode(tag, block, None, None))
             case _:
                 raise Exception ("BlockType not known")
-    for node in nodes:
-        text_to_children(node.value)
-    return nodes
+        if parentNode.children == []:
+            parentNode.children = (text_to_children(block, tag))
+        else:
+            parentNode.children.extend(text_to_children(block, tag))
+    return parentNode
             
 markdown = ("""
 This is **bolded** paragraph
 text in a p
 tag here
 
-This is another paragraph with _italic_ text and `code` here
+###### This is a heading with h4 and _italic_ text and `code` here
+
+> This is a quote with **bold text** here
+> This is **text** with an _italic_ word and a `code block`
+> This is ![obi wan image](https://i.imgur.com/fJRm4Vk.jpeg) and a [link](https://boot.dev)
 
 ```
 This is text that _should_ remain
 the **same** even with inline stuff
 ```
+            
 """)
 nodes = markdown_to_html_node(markdown)
 print(nodes)
+
+            
+# > This is a quote with *bold text* here
+# > This is **text** with an _italic_ word and a `code block` and an ![obi wan image](https://i.imgur.com/fJRm4Vk.jpeg) and a [link](https://boot.dev)
+
+# - This is a unordered list 1
+# - This is a unordered list 2
+# - This is a unordered list 3
+
+# 1. This is a heading with h4 and _italic_ text and `code` here
+# 2. This is a heading with h4 and _italic_ text and `code` here
+# 3. This is a heading with h4 and _italic_ text and `code` here
+# 4. This is a heading with h4 and _italic_ text and `code` here
+
